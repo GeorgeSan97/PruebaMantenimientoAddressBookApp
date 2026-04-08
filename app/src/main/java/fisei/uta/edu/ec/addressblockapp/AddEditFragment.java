@@ -25,18 +25,60 @@ import com.google.android.material.textfield.TextInputLayout;
 
 import fisei.uta.edu.ec.addressblockapp.data.DatabaseDescription.Contact;
 
+/**
+ * Fragment para crear o editar contactos.
+ * 
+ * <p>Responsabilidades:</p>
+ * <ul>
+ *   <li>Formulario con campos para nombre, teléfono, email, calle, ciudad, estado y ZIP</li>
+ *   <li>Validación de campos antes de guardar (nombre obligatorio, teléfono 10 dígitos, ZIP 5 dígitos, email opcional con formato)</li>
+ *   <li>Operar en modo "nuevo" (insert) o "edición" (update)</li>
+ *   <li>Persistencia vía ContentResolver (insert/update)</li>
+ *   <li>Feedback al usuario vía Snackbar</li>
+ * </ul>
+ * 
+ * <p>Modos de operación:</p>
+ * <ul>
+ *   <li>Modo nuevo: {@code addingNewContact = true}, no hay {@code contactUri}</li>
+ *   <li>Modo edición: {@code addingNewContact = false}, {@code contactUri} recibida por Bundle</li>
+ * </ul>
+ * 
+ * <p>Validaciones implementadas:</p>
+ * <ul>
+ *   <li>Nombre: Obligatorio, no puede estar vacío ni contener solo espacios</li>
+ *   <li>Email: Opcional, si se ingresa debe tener formato válido (Patterns.EMAIL_ADDRESS)</li>
+ *   <li>Teléfono: Obligatorio, solo números, exactamente 10 dígitos (\d{10})</li>
+ *   <li>ZIP: Obligatorio, solo números, exactamente 5 dígitos (\d{5})</li>
+ *   <li>Calle, Ciudad, Estado: Opcionales, cualquier texto</li>
+ * </ul>
+ */
 public class AddEditFragment extends Fragment implements LoaderManager.LoaderCallbacks<Cursor> {
 
+    /**
+     * Interface que la Activity (MainActivity) debe implementar para recibir eventos
+     * de este Fragment.
+     */
     public interface AddEditFragmentListener {
+        /**
+         * Called when the add/edit operation is completed.
+         * @param contactUri URI of the added or updated contact
+         */
         void onAddEditCompleted(Uri contactUri);
     }
 
+    /** ID del Loader para cargar datos del contacto a editar */
     private static final int CONTACT_LOADER = 0;
 
+    /** Listener para comunicarse con MainActivity */
     private AddEditFragmentListener listener;
+    
+    /** URI del contacto (null en modo nuevo, con valor en modo edición) */
     private Uri contactUri;
+    
+    /** Indica si estamos creando un contacto nuevo (true) o editando (false) */
     private boolean addingNewContact = true;
 
+    /** Campos del formulario */
     private TextInputLayout nameTextInputLayout;
     private TextInputLayout phoneTextInputLayout;
     private TextInputLayout emailTextInputLayout;
@@ -44,21 +86,40 @@ public class AddEditFragment extends Fragment implements LoaderManager.LoaderCal
     private TextInputLayout cityTextInputLayout;
     private TextInputLayout stateTextInputLayout;
     private TextInputLayout zipTextInputLayout;
+    
+    /** Botón flotante para guardar */
     private FloatingActionButton saveContactFAB;
+    
+    /** CoordinatorLayout para mostrar Snackbars */
     private CoordinatorLayout coordinatorLayout;
 
+    /**
+     * Called when the fragment is attached to the Activity.
+     * Obtiene una referencia al listener (MainActivity).
+     */
     @Override
     public void onAttach(@NonNull Context context) {
         super.onAttach(context);
         listener = (AddEditFragmentListener) context;
     }
 
+    /**
+     * Called when the fragment is detached from the Activity.
+     * Libera la referencia al listener para evitar memory leaks.
+     */
     @Override
     public void onDetach() {
         super.onDetach();
         listener = null;
     }
 
+    /**
+     * Infla y configura la vista del Fragment.
+     * 
+     * <p>Configura todos los TextInputLayout, el FAB de guardar, y determina
+     * el modo de operación (nuevo o edición) basándose en si se recibió una URI
+     * en los argumentos.</p>
+     */
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
@@ -99,12 +160,32 @@ public class AddEditFragment extends Fragment implements LoaderManager.LoaderCal
         return view;
     }
 
+    /**
+     * Mantiene el botón de guardar siempre visible y habilitado.
+     * 
+     * <p>La validación se ejecuta al presionar guardar, no al escribir.
+     * Esto permite que el usuario siempre pueda intentar guardar y ver
+     * los mensajes de error si hay campos inválidos.</p>
+     */
     private void updateSaveButtonFAB() {
         saveContactFAB.show();
         saveContactFAB.setEnabled(true);
         saveContactFAB.setAlpha(1f);
     }
 
+    /**
+     * Valida todos los campos del formulario antes de guardar.
+     * 
+     * <p>Reglas de validación:</p>
+     * <ul>
+     *   <li>Nombre: Obligatorio, no vacío, no solo espacios</li>
+     *   <li>Email: Opcional, si se ingresa debe tener formato válido</li>
+     *   <li>Teléfono: Obligatorio, solo números, exactamente 10 dígitos</li>
+     *   <li>ZIP: Obligatorio, solo números, exactamente 5 dígitos</li>
+     * </ul>
+     * 
+     * @return true si todos los campos son válidos, false en caso contrario
+     */
     private boolean validateForm() {
         boolean valid = true;
 
@@ -159,6 +240,20 @@ public class AddEditFragment extends Fragment implements LoaderManager.LoaderCal
         return valid;
     }
 
+    /**
+     * Guarda el contacto después de validar el formulario.
+     * 
+     * <p>Flujo:</p>
+     * <ol>
+     *   <li>Ejecuta validación del formulario</li>
+     *   <li>Si hay errores: muestra Snackbar y aborta</li>
+     *   <li>Si válido: construye ContentValues con los datos</li>
+     *   <li>Si es nuevo: llama ContentResolver.insert()</li>
+     *   <li>Si es edición: llama ContentResolver.update()</li>
+     *   <li>Muestra Snackbar de éxito/error</li>
+     *   <li>Notifica al listener para cerrar el formulario</li>
+     * </ol>
+     */
     private void saveContact() {
         if (!validateForm()) {
             Snackbar.make(coordinatorLayout, R.string.form_has_errors, Snackbar.LENGTH_LONG).show();
@@ -193,12 +288,26 @@ public class AddEditFragment extends Fragment implements LoaderManager.LoaderCal
         }
     }
 
+    /**
+     * Crea un CursorLoader para cargar los datos del contacto a editar.
+     * 
+     * @param id ID del loader (debe ser CONTACT_LOADER)
+     * @param args Argumentos opcionales (no usados)
+     * @return CursorLoader configurado para cargar el contacto específico
+     */
     @NonNull
     @Override
     public Loader<Cursor> onCreateLoader(int id, @Nullable Bundle args) {
         return new CursorLoader(requireContext(), contactUri, null, null, null, null);
     }
 
+    /**
+     * Called when the loader has finished loading the contact data.
+     * Llena todos los campos del formulario con los datos del contacto a editar.
+     * 
+     * @param loader El loader que terminó
+     * @param data Cursor con los datos del contacto
+     */
     @Override
     public void onLoadFinished(@NonNull Loader<Cursor> loader, Cursor data) {
         if (data != null && data.moveToFirst()) {
@@ -221,10 +330,19 @@ public class AddEditFragment extends Fragment implements LoaderManager.LoaderCal
         }
     }
 
+    /**
+     * Called when a previously created loader is being reset.
+     * No se requiere acción específica en este caso.
+     * 
+     * @param loader El loader que está siendo reset
+     */
     @Override
     public void onLoaderReset(@NonNull Loader<Cursor> loader) { }
 
-    // Simple TextWatcher without boilerplate
+    /**
+     * TextWatcher simplificado que ejecuta un Runnable cuando el texto cambia.
+     * Evita el boilerplate de implementar los tres métodos de TextWatcher.
+     */
     private static class SimpleTextWatcher implements android.text.TextWatcher {
         private final Runnable onChanged;
         SimpleTextWatcher(Runnable r) { this.onChanged = r; }
