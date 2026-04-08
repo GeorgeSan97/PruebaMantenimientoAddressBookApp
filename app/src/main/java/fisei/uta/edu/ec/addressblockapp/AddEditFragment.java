@@ -47,7 +47,7 @@ import fisei.uta.edu.ec.addressblockapp.data.DatabaseDescription.Contact;
  * <ul>
  *   <li>Nombre: Obligatorio, no puede estar vacío ni contener solo espacios</li>
  *   <li>Email: Opcional, si se ingresa debe tener formato válido (Patterns.EMAIL_ADDRESS)</li>
- *   <li>Teléfono: Obligatorio, solo números, exactamente 10 dígitos (\d{10})</li>
+ *   <li>Teléfono: Obligatorio, puede contener espacios y guiones, normalizado a solo números, exactamente 10 dígitos</li>
  *   <li>ZIP: Obligatorio, solo números, exactamente 5 dígitos (\d{5})</li>
  *   <li>Calle, Ciudad, Estado: Opcionales, cualquier texto</li>
  * </ul>
@@ -174,13 +174,23 @@ public class AddEditFragment extends Fragment implements LoaderManager.LoaderCal
     }
 
     /**
+     * Normaliza un número de teléfono eliminando espacios y guiones.
+     * 
+     * @param phone El teléfono original (puede contener espacios y guiones)
+     * @return El teléfono normalizado (solo dígitos)
+     */
+    private String normalizePhone(String phone) {
+        return phone.replaceAll("[\\s-]", "");
+    }
+
+    /**
      * Valida todos los campos del formulario antes de guardar.
      * 
      * <p>Reglas de validación:</p>
      * <ul>
      *   <li>Nombre: Obligatorio, no vacío, no solo espacios</li>
      *   <li>Email: Opcional, si se ingresa debe tener formato válido</li>
-     *   <li>Teléfono: Obligatorio, solo números, exactamente 10 dígitos</li>
+     *   <li>Teléfono: Obligatorio, puede contener espacios y guiones, normalizado a solo números, exactamente 10 dígitos</li>
      *   <li>ZIP: Obligatorio, solo números, exactamente 5 dígitos</li>
      * </ul>
      * 
@@ -212,11 +222,11 @@ public class AddEditFragment extends Fragment implements LoaderManager.LoaderCal
         String phone = phoneTextInputLayout.getEditText() != null
                 ? phoneTextInputLayout.getEditText().getText().toString()
                 : "";
-        String phoneTrim = phone.trim();
-        if (phoneTrim.isEmpty()) {
+        String phoneNormalized = normalizePhone(phone);
+        if (phoneNormalized.isEmpty()) {
             phoneTextInputLayout.setError(getString(R.string.error_phone_required));
             valid = false;
-        } else if (!phoneTrim.matches("\\d{10}")) {
+        } else if (!phoneNormalized.matches("\\d{10}")) {
             phoneTextInputLayout.setError(getString(R.string.error_phone_10_digits));
             valid = false;
         } else {
@@ -262,7 +272,11 @@ public class AddEditFragment extends Fragment implements LoaderManager.LoaderCal
 
         ContentValues contentValues = new ContentValues();
         contentValues.put(Contact.COLUMN_NAME, nameTextInputLayout.getEditText().getText().toString());
-        contentValues.put(Contact.COLUMN_PHONE, phoneTextInputLayout.getEditText().getText().toString());
+        // Guardar teléfono normalizado (solo dígitos)
+        String phoneValue = phoneTextInputLayout.getEditText() != null
+                ? phoneTextInputLayout.getEditText().getText().toString()
+                : "";
+        contentValues.put(Contact.COLUMN_PHONE, normalizePhone(phoneValue));
         contentValues.put(Contact.COLUMN_EMAIL, emailTextInputLayout.getEditText().getText().toString());
         contentValues.put(Contact.COLUMN_STREET, streetTextInputLayout.getEditText().getText().toString());
         contentValues.put(Contact.COLUMN_CITY, cityTextInputLayout.getEditText().getText().toString());
