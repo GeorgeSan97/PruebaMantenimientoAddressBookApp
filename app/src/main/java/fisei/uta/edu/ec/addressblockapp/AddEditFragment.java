@@ -5,6 +5,7 @@ import android.content.Context;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
+import android.util.Patterns;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -99,11 +100,71 @@ public class AddEditFragment extends Fragment implements LoaderManager.LoaderCal
     }
 
     private void updateSaveButtonFAB() {
-        String input = nameTextInputLayout.getEditText().getText().toString();
-        if (input.trim().length() != 0) saveContactFAB.show(); else saveContactFAB.hide();
+        saveContactFAB.show();
+        saveContactFAB.setEnabled(true);
+        saveContactFAB.setAlpha(1f);
+    }
+
+    private boolean validateForm() {
+        boolean valid = true;
+
+        String name = nameTextInputLayout.getEditText() != null
+                ? nameTextInputLayout.getEditText().getText().toString()
+                : "";
+        if (name.trim().isEmpty()) {
+            nameTextInputLayout.setError(getString(R.string.error_name_required));
+            valid = false;
+        } else {
+            nameTextInputLayout.setError(null);
+        }
+
+        String email = emailTextInputLayout.getEditText() != null
+                ? emailTextInputLayout.getEditText().getText().toString()
+                : "";
+        if (!email.trim().isEmpty() && !Patterns.EMAIL_ADDRESS.matcher(email.trim()).matches()) {
+            emailTextInputLayout.setError(getString(R.string.error_email_invalid));
+            valid = false;
+        } else {
+            emailTextInputLayout.setError(null);
+        }
+
+        String phone = phoneTextInputLayout.getEditText() != null
+                ? phoneTextInputLayout.getEditText().getText().toString()
+                : "";
+        String phoneTrim = phone.trim();
+        if (phoneTrim.isEmpty()) {
+            phoneTextInputLayout.setError(getString(R.string.error_phone_required));
+            valid = false;
+        } else if (!phoneTrim.matches("\\d{10}")) {
+            phoneTextInputLayout.setError(getString(R.string.error_phone_10_digits));
+            valid = false;
+        } else {
+            phoneTextInputLayout.setError(null);
+        }
+
+        String zip = zipTextInputLayout.getEditText() != null
+                ? zipTextInputLayout.getEditText().getText().toString()
+                : "";
+        String zipTrim = zip.trim();
+        if (zipTrim.isEmpty()) {
+            zipTextInputLayout.setError(getString(R.string.error_zip_required));
+            valid = false;
+        } else if (!zipTrim.matches("\\d{5}")) {
+            zipTextInputLayout.setError(getString(R.string.error_zip_5_digits));
+            valid = false;
+        } else {
+            zipTextInputLayout.setError(null);
+        }
+
+        return valid;
     }
 
     private void saveContact() {
+        if (!validateForm()) {
+            Snackbar.make(coordinatorLayout, R.string.form_has_errors, Snackbar.LENGTH_LONG).show();
+            return;
+        }
+
         ContentValues contentValues = new ContentValues();
         contentValues.put(Contact.COLUMN_NAME, nameTextInputLayout.getEditText().getText().toString());
         contentValues.put(Contact.COLUMN_PHONE, phoneTextInputLayout.getEditText().getText().toString());

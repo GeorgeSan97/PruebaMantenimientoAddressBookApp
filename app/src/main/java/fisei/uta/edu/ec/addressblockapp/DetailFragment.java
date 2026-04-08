@@ -1,6 +1,7 @@
 package fisei.uta.edu.ec.addressblockapp;
 
 import android.app.AlertDialog;
+import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
 import android.net.Uri;
@@ -20,6 +21,10 @@ import androidx.loader.app.LoaderManager;
 import androidx.loader.content.CursorLoader;
 import androidx.loader.content.Loader;
 
+import com.google.android.material.snackbar.Snackbar;
+
+import androidx.coordinatorlayout.widget.CoordinatorLayout;
+
 import fisei.uta.edu.ec.addressblockapp.data.DatabaseDescription.Contact;
 
 public class DetailFragment extends Fragment implements LoaderManager.LoaderCallbacks<Cursor> {
@@ -34,6 +39,9 @@ public class DetailFragment extends Fragment implements LoaderManager.LoaderCall
 
     private DetailFragmentListener listener;
     private Uri contactUri;
+
+    private CoordinatorLayout coordinatorLayout;
+    private ContentValues lastLoadedContactValues;
 
     private TextView nameTextView;
     private TextView phoneTextView;
@@ -62,6 +70,7 @@ public class DetailFragment extends Fragment implements LoaderManager.LoaderCall
         if (getArguments() != null) {
             contactUri = getArguments().getParcelable(MainActivity.CONTACT_URI);
         }
+        coordinatorLayout = requireActivity().findViewById(R.id.coordinatorLayout);
         View view = inflater.inflate(R.layout.fragment_detail, container, false);
         nameTextView = view.findViewById(R.id.nameTextView);
         phoneTextView = view.findViewById(R.id.phoneTextView);
@@ -101,7 +110,22 @@ public class DetailFragment extends Fragment implements LoaderManager.LoaderCall
                 .setTitle(R.string.confirm_title)
                 .setMessage(R.string.confirm_message)
                 .setPositiveButton(R.string.button_delete, (d, w) -> {
-                    requireContext().getContentResolver().delete(contactUri, null, null);
+                    final ContentValues deletedValues = lastLoadedContactValues;
+                    final Context snackbarContext = coordinatorLayout != null
+                            ? coordinatorLayout.getContext()
+                            : getContext();
+                    if (snackbarContext != null) {
+                        snackbarContext.getContentResolver().delete(contactUri, null, null);
+                    }
+
+                    Snackbar.make(coordinatorLayout, R.string.snackbar_contact_deleted, Snackbar.LENGTH_LONG)
+                            .setAction(R.string.snackbar_undo, v -> {
+                                if (deletedValues != null && snackbarContext != null) {
+                                    snackbarContext.getContentResolver().insert(Contact.CONTENT_URI, deletedValues);
+                                }
+                            })
+                            .show();
+
                     if (listener != null) listener.onContactDeleted();
                 })
                 .setNegativeButton(R.string.button_cancel, null)
@@ -132,6 +156,16 @@ public class DetailFragment extends Fragment implements LoaderManager.LoaderCall
             cityTextView.setText(data.getString(cityIndex));
             stateTextView.setText(data.getString(stateIndex));
             zipTextView.setText(data.getString(zipIndex));
+
+            ContentValues values = new ContentValues();
+            values.put(Contact.COLUMN_NAME, data.getString(nameIndex));
+            values.put(Contact.COLUMN_PHONE, data.getString(phoneIndex));
+            values.put(Contact.COLUMN_EMAIL, data.getString(emailIndex));
+            values.put(Contact.COLUMN_STREET, data.getString(streetIndex));
+            values.put(Contact.COLUMN_CITY, data.getString(cityIndex));
+            values.put(Contact.COLUMN_STATE, data.getString(stateIndex));
+            values.put(Contact.COLUMN_ZIP, data.getString(zipIndex));
+            lastLoadedContactValues = values;
         }
     }
 

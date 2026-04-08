@@ -32,4 +32,15 @@
     <string name="insert_failed">Insert failed: s</string>
     <string name="add_contact_button_description">Añadir un nuevo contacto</string>
 
+    <string name="error_name_required">El nombre es obligatorio</string>
+    <string name="error_email_invalid">El correo no tiene un formato válido</string>
+    <string name="error_phone_required">El teléfono es obligatorio</string>
+    <string name="error_phone_10_digits">El teléfono debe tener exactamente 10 dígitos</string>
+    <string name="error_zip_required">El ZIP es obligatorio</string>
+    <string name="error_zip_5_digits">El ZIP debe tener exactamente 5 dígitos</string>
+    <string name="form_has_errors">Revisa los campos marcados</string>
+
+    <string name="snackbar_contact_deleted">Contacto eliminado</string>
+    <string name="snackbar_undo">DESHACER</string>
+
 </resources>
