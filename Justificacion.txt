@@ -1,0 +1,12 @@
+1- Dónde realizó los cambios
+Realicé los cambios en el fragmento de agregar/editar contactos, específicamente en la validación y guardado del teléfono. Antes solo se aceptaban 10 dígitos pero estos debían ser consecutivos, implementé un método para eliminar espacios y guiones antes de validar y guardar. 
+  
+2- Por qué eligió ese lugar
+Elegí esos lugares porque son los puntos donde se valida y se maneja la interacción del usuario, lo que permite aplicar los cambios de manera directa manteniendo su misma lógica y estructura
+
+3- Qué problemas encontró
+Los principales problemas fueron que la validación del teléfono no permitía formatos flexibles ni verificaba correctamente la longitud, y que no existía un mecanismo para detectar cambios no guardados ni controlar adecuadamente la salida del formulario.
+
+
+4- Cómo los resolvió 
+Corregí la validación del teléfono normalizándolo antes de verificar los 10 dígitos, y añadí detección de cambios no guardados comparando valores y mostrando una advertencia al salir.

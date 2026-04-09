@@ -1,0 +1,11 @@
+1. Guardar contacto:
+Cuando el usuario guarda un contacto, primero valido que todos los campos cumplan las reglas. Si hay errores, muestro un mensaje; si todo está correcto, guardo la información en la base de datos (insertar o actualizar según el caso) y regreso a la pantalla anterior mostrando confirmación.
+
+2. Almacenamiento de datos:
+Los datos se guardan en una base de datos SQLite mediante un ContentProvider que gestiona las operaciones CRUD. Desde los fragments uso el ContentResolver y CursorLoader para acceder y cargar la información de forma eficiente y asíncrona.
+
+3. Navegación:
+La navegación la controlo desde la actividad principal usando fragments y listeners. Manejo una pila de retroceso que permite pasar entre lista, detalle y edición, y regresar fácilmente manteniendo una experiencia fluida.
+
+4. Operaciones en la UI:
+Si ejecuto tareas pesadas en el hilo principal, la app puede bloquearse y generar un ANR. Para evitarlo, utilizo CursorLoader, que realiza las operaciones en segundo plano y mantiene la interfaz rápida y responsive.
