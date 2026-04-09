@@ -1,5 +1,6 @@
 package fisei.uta.edu.ec.addressblockapp;
 
+import android.app.AlertDialog;
 import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
@@ -7,6 +8,9 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.util.Patterns;
 import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.inputmethod.InputMethodManager;
@@ -51,6 +55,14 @@ import fisei.uta.edu.ec.addressblockapp.data.DatabaseDescription.Contact;
  *   <li>ZIP: Obligatorio, solo números, exactamente 5 dígitos (\d{5})</li>
  *   <li>Calle, Ciudad, Estado: Opcionales, cualquier texto</li>
  * </ul>
+ * 
+ * <p>Detección de cambios no guardados:</p>
+ * <ul>
+ *   <li>Guarda los valores originales al cargar un contacto en modo edición</li>
+ *   <li>Compara valores actuales con originales al intentar salir</li>
+ *   <li>Muestra diálogo de advertencia si hay cambios sin guardar</li>
+ *   <li>Permite elegir entre salir sin guardar o continuar editando</li>
+ * </ul>
  */
 public class AddEditFragment extends Fragment implements LoaderManager.LoaderCallbacks<Cursor> {
 
@@ -93,6 +105,15 @@ public class AddEditFragment extends Fragment implements LoaderManager.LoaderCal
     /** CoordinatorLayout para mostrar Snackbars */
     private CoordinatorLayout coordinatorLayout;
 
+    /** Valores originales del contacto (para detectar cambios no guardados) */
+    private String originalName = "";
+    private String originalPhone = "";
+    private String originalEmail = "";
+    private String originalStreet = "";
+    private String originalCity = "";
+    private String originalState = "";
+    private String originalZip = "";
+
     /**
      * Called when the fragment is attached to the Activity.
      * Obtiene una referencia al listener (MainActivity).
@@ -124,6 +145,16 @@ public class AddEditFragment extends Fragment implements LoaderManager.LoaderCal
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         setHasOptionsMenu(true);
+        // En modo nuevo, los valores originales están vacíos
+        if (addingNewContact) {
+            originalName = "";
+            originalPhone = "";
+            originalEmail = "";
+            originalStreet = "";
+            originalCity = "";
+            originalState = "";
+            originalZip = "";
+        }
         View view = inflater.inflate(R.layout.fragment_add_edit, container, false);
 
         nameTextInputLayout = view.findViewById(R.id.nameTextInputLayout);
@@ -161,6 +192,50 @@ public class AddEditFragment extends Fragment implements LoaderManager.LoaderCal
     }
 
     /**
+     * Normaliza un número de teléfono eliminando espacios y guiones.
+     * 
+     * @param phone El teléfono original (puede contener espacios y guiones)
+     * @return El teléfono normalizado (solo dígitos)
+     */
+    private String normalizePhone(String phone) {
+        return phone.replaceAll("[\\s-]", "");
+    }
+
+    /**
+     * Verifica si hay cambios no guardados comparando los valores actuales
+     * con los valores originales.
+     * 
+     * <p>Si el usuario modifica un campo y luego vuelve exactamente al valor original,
+     * no se considera cambio.</p>
+     * 
+     * @return true si hay cambios sin guardar, false en caso contrario
+     */
+    private boolean hasUnsavedChanges() {
+        String currentName = nameTextInputLayout.getEditText() != null
+                ? nameTextInputLayout.getEditText().getText().toString() : "";
+        String currentPhone = phoneTextInputLayout.getEditText() != null
+                ? phoneTextInputLayout.getEditText().getText().toString() : "";
+        String currentEmail = emailTextInputLayout.getEditText() != null
+                ? emailTextInputLayout.getEditText().getText().toString() : "";
+        String currentStreet = streetTextInputLayout.getEditText() != null
+                ? streetTextInputLayout.getEditText().getText().toString() : "";
+        String currentCity = cityTextInputLayout.getEditText() != null
+                ? cityTextInputLayout.getEditText().getText().toString() : "";
+        String currentState = stateTextInputLayout.getEditText() != null
+                ? stateTextInputLayout.getEditText().getText().toString() : "";
+        String currentZip = zipTextInputLayout.getEditText() != null
+                ? zipTextInputLayout.getEditText().getText().toString() : "";
+
+        return !currentName.equals(originalName) ||
+               !currentPhone.equals(originalPhone) ||
+               !currentEmail.equals(originalEmail) ||
+               !currentStreet.equals(originalStreet) ||
+               !currentCity.equals(originalCity) ||
+               !currentState.equals(originalState) ||
+               !currentZip.equals(originalZip);
+    }
+
+    /**
      * Mantiene el botón de guardar siempre visible y habilitado.
      * 
      * <p>La validación se ejecuta al presionar guardar, no al escribir.
@@ -171,16 +246,6 @@ public class AddEditFragment extends Fragment implements LoaderManager.LoaderCal
         saveContactFAB.show();
         saveContactFAB.setEnabled(true);
         saveContactFAB.setAlpha(1f);
-    }
-
-    /**
-     * Normaliza un número de teléfono eliminando espacios y guiones.
-     * 
-     * @param phone El teléfono original (puede contener espacios y guiones)
-     * @return El teléfono normalizado (solo dígitos)
-     */
-    private String normalizePhone(String phone) {
-        return phone.replaceAll("[\\s-]", "");
     }
 
     /**
@@ -292,6 +357,14 @@ public class AddEditFragment extends Fragment implements LoaderManager.LoaderCal
                 Snackbar.make(coordinatorLayout, R.string.contact_not_added, Snackbar.LENGTH_LONG).show();
             }
         } else {
+            // Actualizar valores originales después de guardar exitosamente
+            originalName = nameTextInputLayout.getEditText().getText().toString();
+            originalPhone = phoneTextInputLayout.getEditText().getText().toString();
+            originalEmail = emailTextInputLayout.getEditText().getText().toString();
+            originalStreet = streetTextInputLayout.getEditText().getText().toString();
+            originalCity = cityTextInputLayout.getEditText().getText().toString();
+            originalState = stateTextInputLayout.getEditText().getText().toString();
+            originalZip = zipTextInputLayout.getEditText().getText().toString();
             int updated = requireActivity().getContentResolver().update(contactUri, contentValues, null, null);
             if (updated > 0) {
                 if (listener != null) listener.onAddEditCompleted(contactUri);
@@ -299,6 +372,52 @@ public class AddEditFragment extends Fragment implements LoaderManager.LoaderCal
             } else {
                 Snackbar.make(coordinatorLayout, R.string.contact_not_updated, Snackbar.LENGTH_LONG).show();
             }
+        }
+    }
+
+    /**
+     * Infla el menú de opciones del Fragment.
+     * El menú contiene el botón Back para salir del formulario.
+     */
+    @Override
+    public void onCreateOptionsMenu(@NonNull Menu menu, @NonNull MenuInflater inflater) {
+        super.onCreateOptionsMenu(menu, inflater);
+        inflater.inflate(R.menu.fragment_add_edit_menu, menu);
+    }
+
+    /**
+     * Maneja las selecciones del menú de opciones.
+     * 
+     * @param item El item seleccionado
+     * @return true si se manejó la acción, false en caso contrario
+     */
+    @Override
+    public boolean onOptionsItemSelected(@NonNull MenuItem item) {
+        if (item.getItemId() == R.id.action_back) {
+            handleBackPressed();
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
+    }
+
+    /**
+     * Maneja la acción de presionar atrás.
+     * Verifica si hay cambios no guardados y muestra diálogo de confirmación.
+     */
+    private void handleBackPressed() {
+        if (hasUnsavedChanges()) {
+            new AlertDialog.Builder(requireContext())
+                    .setTitle(R.string.unsaved_changes_title)
+                    .setMessage(R.string.unsaved_changes_message)
+                    .setPositiveButton(R.string.button_discard, (dialog, which) -> {
+                        // Salir sin guardar
+                        if (listener != null) listener.onAddEditCompleted(null);
+                    })
+                    .setNegativeButton(R.string.button_continue_editing, null)
+                    .show();
+        } else {
+            // No hay cambios, salir directamente
+            if (listener != null) listener.onAddEditCompleted(null);
         }
     }
 
@@ -333,13 +452,23 @@ public class AddEditFragment extends Fragment implements LoaderManager.LoaderCal
             int stateIndex = data.getColumnIndex(Contact.COLUMN_STATE);
             int zipIndex = data.getColumnIndex(Contact.COLUMN_ZIP);
 
-            nameTextInputLayout.getEditText().setText(data.getString(nameIndex));
-            phoneTextInputLayout.getEditText().setText(data.getString(phoneIndex));
-            emailTextInputLayout.getEditText().setText(data.getString(emailIndex));
-            streetTextInputLayout.getEditText().setText(data.getString(streetIndex));
-            cityTextInputLayout.getEditText().setText(data.getString(cityIndex));
-            stateTextInputLayout.getEditText().setText(data.getString(stateIndex));
-            zipTextInputLayout.getEditText().setText(data.getString(zipIndex));
+            // Guardar valores originales
+            originalName = data.getString(nameIndex);
+            originalPhone = data.getString(phoneIndex);
+            originalEmail = data.getString(emailIndex);
+            originalStreet = data.getString(streetIndex);
+            originalCity = data.getString(cityIndex);
+            originalState = data.getString(stateIndex);
+            originalZip = data.getString(zipIndex);
+
+            // Llenar campos del formulario
+            nameTextInputLayout.getEditText().setText(originalName);
+            phoneTextInputLayout.getEditText().setText(originalPhone);
+            emailTextInputLayout.getEditText().setText(originalEmail);
+            streetTextInputLayout.getEditText().setText(originalStreet);
+            cityTextInputLayout.getEditText().setText(originalCity);
+            stateTextInputLayout.getEditText().setText(originalState);
+            zipTextInputLayout.getEditText().setText(originalZip);
             updateSaveButtonFAB();
         }
     }

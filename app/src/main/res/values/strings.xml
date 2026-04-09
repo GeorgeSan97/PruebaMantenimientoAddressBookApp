@@ -43,4 +43,9 @@
     <string name="snackbar_contact_deleted">Contacto eliminado</string>
     <string name="snackbar_undo">DESHACER</string>
 
+    <string name="unsaved_changes_title">Cambios no guardados</string>
+    <string name="unsaved_changes_message">Tiene cambios sin guardar. ¿Desea salir sin guardar?</string>
+    <string name="button_discard">Salir sin guardar</string>
+    <string name="button_continue_editing">Continuar editando</string>
+
 </resources>
